@@ -1,0 +1,18 @@
+{
+  "data_root": "./datas",
+  "outdir": "./outputs",
+
+  "dataset": "walmart_subsampled",
+  "method": "CLAVADDPM",
+  "run": "1",
+  "sample": "sample1",
+
+  "mode": "tatr",
+  "seed": 42,
+  "test_ratio": 0.2,
+  "granularity": 10,
+
+  "dates": "1,2",
+  "bin": 0.1,
+  "ratio_max": 1.0
+}

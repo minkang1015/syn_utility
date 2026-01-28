@@ -1,0 +1,62 @@
+########################################
+# Project-specific (DO NOT COMMIT)
+########################################
+/datas/
+/outputs/
+**/outputs/
+/utility/configs/generated/
+
+########################################
+# Python
+########################################
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+dist/
+build/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+########################################
+# Jupyter / IPython
+########################################
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+.profile_default/
+ipython_config.py
+
+########################################
+# Logs / temp
+########################################
+*.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+########################################
+# Environments
+########################################
+.venv/
+venv/
+ENV/
+env/
+conda-meta/
+*.conda
+*.env
+
+########################################
+# IDEs
+########################################
+.vscode/
+.idea/
+*.iml
+

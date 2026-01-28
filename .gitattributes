@@ -1,0 +1,35 @@
+# Normalize all text files to LF in the repository
+* text=auto eol=lf
+
+# Shell scripts must be LF (avoid /bin/bash^M issues)
+*.sh text eol=lf
+
+# Python / configs / docs
+*.py   text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.md   text eol=lf
+*.txt  text eol=lf
+*.csv  text eol=lf
+
+# Jupyter notebooks are JSON; keep as text with LF
+*.ipynb text eol=lf
+
+# Binary files (do not try to normalize line endings)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.zip binary
+*.gz  binary
+*.tar binary
+*.7z  binary
+*.pt  binary
+*.pth binary
+*.ckpt binary
+*.onnx binary
+*.pkl binary
+*.npy binary
+*.npz binary

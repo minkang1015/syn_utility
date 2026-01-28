@@ -1,0 +1,18 @@
+{
+  "data_root": "./datas",
+  "outdir": "./outputs",
+
+  "dataset": "rossmann_subsampled",
+  "method": "REALTABFORMER",
+  "run": "1",
+  "sample": "sample1",
+
+  "mode": "tmtr",
+  "seed": 42,
+  "test_ratio": 0.2,
+  "granularity": 10,
+
+  "dates": "7,14",
+  "bin": 0.1,
+  "ratio_max": 1.0
+}
