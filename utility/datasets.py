@@ -144,10 +144,165 @@ def load_walmart_flat(
     )
     return final, info
 
+def load_ptbxl_flat(
+    data_root: Path,
+    split: str,
+    method: str = "",
+    run: str = "1",
+    sample: str = "sample1",
+    dates: list[int] | None = None,
+) -> tuple[pd.DataFrame, DatasetInfo]:
+    dates = dates or [5, 10, 15, 20]
+    base = data_root / ("original" if split == "original" else "synthetic") / "ptbxl"
+    if split != "original":
+        base = base / method / str(run) / str(sample)
+
+    df_meta = pd.read_csv(base / "ptbxl_database.csv")
+    df_meta = df_meta.drop(columns=['report'])
+    df_records = pd.read_csv(base / "records.csv")
+    meta = read_json(data_root / "original" / "ptbxl" / "metadata.json")
+    
+
+    df_meta_encoded = encode_tables(df_meta, meta['tables']['ptbxl_database'])
+    df_records_encoded = encode_tables(df_records, meta['tables']['records'])
+    
+    ts_cols = [f"lead_{i}" for i in range(12)]
+    df_features = make_ts_features(
+        df=df_records_encoded,
+        group_cols=["ecg_id"],
+        ts_cols=ts_cols,
+        date_col="t",
+        dates=dates,
+        add_shift=False,
+        add_rolling_mean=True,
+        add_rolling_std=True,
+        add_growth=True,
+        growth_type="diff"
+    )
+    
+    df_features_agg = df_features.groupby("ecg_id").mean(numeric_only=True).reset_index()
+    final = pd.merge(df_meta_encoded, df_features_agg, on="ecg_id", how="inner")
+
+    info = DatasetInfo(
+        name="ptbxl",
+        target_col="heart_axis",
+        id_col="ecg_id",
+        date_col="recording_date",
+        group_cols=None,
+        task="classification",
+    )
+    return final, info
+
+def load_freddiemac_flat(
+    data_root: Path,
+    split: str,
+    method: str = "",
+    run: str = "1",
+    sample: str = "sample1",
+    dates: list[int] | None = None,
+) -> tuple[pd.DataFrame, DatasetInfo]:
+    dates = dates or [1, 2]
+    base = data_root / ("original" if split == "original" else "synthetic") / "freddiemac"
+    if split != "original":
+        base = base / method / str(run) / str(sample)
+
+    hist = pd.read_csv(base / "hist.csv")
+    orig = pd.read_csv(base / "orig.csv")
+    meta = read_json(data_root / "original" / "freddiemac" / "metadata.json")
+
+    # 1. Encoding
+    hist_enc = encode_tables(hist, meta['tables']['hist'])
+    orig_enc = encode_tables(orig, meta['tables']['orig'])
+
+    # 2. Time-series features
+    ts_cols = ['CURRENT INTEREST RATE', 'CURRENT NON-INTEREST BEARING UPB', 'ESTIMATED LOAN TO VALUE (ELTV)']
+    hist_feats = make_ts_features(
+        hist_enc, 
+        group_cols=['LOAN SEQUENCE NUMBER'], 
+        ts_cols=ts_cols, 
+        dates=dates, 
+        date_col='MONTHLY REPORTING PERIOD'
+    )
+
+    # 3. Merge and Target Creation (DLQ_T+1)
+    df = hist_feats.merge(orig_enc, on='LOAN SEQUENCE NUMBER', how='left')
+    df = df.sort_values(['LOAN SEQUENCE NUMBER', 'MONTHLY REPORTING PERIOD'], kind="mergesort")
+    
+    g = df.groupby('LOAN SEQUENCE NUMBER', sort=False)
+    d = pd.to_numeric(df['CURRENT LOAN DELINQUENCY STATUS'], errors="coerce").fillna(0)
+    df["DLQ_BIN_T"] = (d > 0).astype("int8")
+    df["DLQ_T+1"] = g["DLQ_BIN_T"].shift(-1).astype("Int8")  
+    
+    final = df.dropna(subset=["DLQ_T+1"]).copy()
+    final["DLQ_T+1"] = final["DLQ_T+1"].astype("int8")
+
+    info = DatasetInfo(
+        name="freddiemac",
+        target_col="DLQ_T+1",
+        id_col="LOAN SEQUENCE NUMBER",
+        date_col="MONTHLY REPORTING PERIOD",
+        group_cols=None,
+        task="classification",
+    )
+    return final, info
+
+def load_fanniemae_flat(
+    data_root: Path,
+    split: str,
+    method: str = "",
+    run: str = "1",
+    sample: str = "sample1",
+    dates: list[int] | None = None,
+) -> tuple[pd.DataFrame, DatasetInfo]:
+    dates = dates or [1, 2]
+    base = data_root / ("original" if split == "original" else "synthetic") / "fanniemae"
+    if split != "original":
+        base = base / method / str(run) / str(sample)
+
+    df = pd.read_csv(base / "fanniemae.csv")
+    meta = read_json(data_root / "original" / "fanniemae" / "metadata_filtered.json")
+
+    # 1. Encoding
+    df_enc = encode_tables(df, meta['tables']['crt'])
+
+    # 2. Time-series features
+    ts_cols = ['Original Loan to Value Ratio (LTV)', 'Debt-To-Income (DTI)', 'Original Combined Loan to Value Ratio (CLTV)']
+    df_feats = make_ts_features(
+        df_enc, 
+        group_cols=['Loan Identifier'], 
+        ts_cols=ts_cols, 
+        dates=dates, 
+        date_col='Monthly Reporting Period'
+    )
+
+    # 3. Target Creation (DLQ_T+1)
+    df_feats = df_feats.sort_values(['Loan Identifier', 'Monthly Reporting Period'], kind="mergesort")
+    g = df_feats.groupby('Loan Identifier', sort=False)
+    
+    d = pd.to_numeric(df_feats['Current Loan Delinquency Status'], errors="coerce").fillna(0)
+    df_feats["DLQ_BIN_T"] = (d > 0).astype("int8")
+    df_feats["DLQ_T+1"] = g["DLQ_BIN_T"].shift(-1).astype("Int8")  
+
+    final = df_feats.dropna(subset=["DLQ_T+1"]).copy()
+    final["DLQ_T+1"] = final["DLQ_T+1"].astype("int8")
+
+    info = DatasetInfo(
+        name="fanniemae",
+        target_col="DLQ_T+1",
+        id_col="Loan Identifier",
+        date_col="Monthly Reporting Period",
+        group_cols=None,
+        task="classification",
+    )
+    return final, info
+
 
 DATASET_LOADERS = {
     "rossmann_subsampled": load_rossmann_flat,
     "walmart_subsampled": load_walmart_flat,
+    "ptbxl": load_ptbxl_flat,
+    "freddiemac": load_freddiemac_flat,
+    "fanniemae": load_fanniemae_flat,
 }
 
 

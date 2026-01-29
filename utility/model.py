@@ -35,12 +35,13 @@ def fit_downstream_model(
         train_X[c] = train_X[c].dt.year * 100 + train_X[c].dt.month
         test_X[c]  = test_X[c].dt.year  * 100 + test_X[c].dt.month
     
-    if task == "classification":
+    if task == "classification" and train_y.nunique() < 3:
         model = xgb.XGBClassifier(
             objective="binary:logistic",
             random_state=seed,
             n_jobs=-1,
         )
+        
         model.fit(train_X, train_y)
         proba = model.predict_proba(test_X)[:, 1]
         pred = (proba >= 0.5).astype(int)
@@ -51,6 +52,29 @@ def fit_downstream_model(
             "recall": float(recall_score(test_y, pred, zero_division=0)),
             "precision": float(precision_score(test_y, pred, zero_division=0)),
         }
+        
+    elif task == "classification" and train_y.nunique() >= 3:
+            model = xgb.XGBClassifier(
+                objective="multi:softprob",
+                random_state=seed,
+                n_jobs=-1,
+                num_class=train_y.nunique()
+            )
+            model.fit(train_X, train_y)
+            
+            proba = model.predict_proba(test_X)
+            pred = model.predict(test_X)        
+            try:
+                auc_val = float(roc_auc_score(test_y, proba, multi_class='ovr', average='weighted'))
+            except ValueError:
+                auc_val = np.nan
+            return {
+                "auc": auc_val,
+                "accuracy": float(accuracy_score(test_y, pred)),
+                "f1": float(f1_score(test_y, pred, average="weighted", zero_division=0)),
+                "recall": float(recall_score(test_y, pred, average="weighted", zero_division=0)),
+                "precision": float(precision_score(test_y, pred, average="weighted", zero_division=0)),
+            }
 
     if task == "regression":
         model = xgb.XGBRegressor(

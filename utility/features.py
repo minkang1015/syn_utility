@@ -3,7 +3,6 @@ from typing import Iterable, Optional, Sequence
 import numpy as np
 import pandas as pd
 
-
 def make_ts_features(
     df: pd.DataFrame,
     group_cols: Sequence[str],
@@ -19,10 +18,11 @@ def make_ts_features(
     add_rolling_min: bool = False,
     add_rolling_max: bool = False,
     add_growth: bool = True,
-    growth_type: str = "pct",  # {"pct","log","diff"}
+    growth_type: str = "pct",
     growth_clip: Optional[float] = None,
 ) -> pd.DataFrame:
     out = df.copy()
+    
     required = list(group_cols) + [date_col] + list(ts_cols)
     missing = [c for c in required if c not in out.columns]
     if missing:
@@ -36,6 +36,8 @@ def make_ts_features(
 
     g = out.groupby(list(group_cols), sort=False)
 
+    new_features = []
+
     for col in ts_cols:
         for k in dates:
             k = int(k)
@@ -43,24 +45,37 @@ def make_ts_features(
                 raise ValueError(f"dates must be positive integers; got {k}")
 
             if add_shift:
-                out[f"{prefix}_{k}_period_{col}"] = g[col].shift(k).fillna(-999)
+                s = g[col].shift(k).fillna(-999)
+                s.name = f"{prefix}_{k}_period_{col}"
+                new_features.append(s)
 
             if add_rolling_mean:
-                out[f"{prefix}_{k}_periods_{col}_Mean"] = g[col].transform(
+                s = g[col].transform(
                     lambda x: x.shift(1).rolling(window=k, min_periods=min_periods).mean().fillna(-999)
                 )
+                s.name = f"{prefix}_{k}_periods_{col}_Mean"
+                new_features.append(s)
+                
             if add_rolling_std:
-                out[f"{prefix}_{k}_periods_{col}_Std"] = g[col].transform(
+                s = g[col].transform(
                     lambda x: x.shift(1).rolling(window=k, min_periods=min_periods).std().fillna(-999)
                 )
+                s.name = f"{prefix}_{k}_periods_{col}_Std"
+                new_features.append(s)
+                
             if add_rolling_min:
-                out[f"{prefix}_{k}_periods_{col}_Min"] = g[col].transform(
+                s = g[col].transform(
                     lambda x: x.shift(1).rolling(window=k, min_periods=min_periods).min().fillna(-999)
                 )
+                s.name = f"{prefix}_{k}_periods_{col}_Min"
+                new_features.append(s)
+                
             if add_rolling_max:
-                out[f"{prefix}_{k}_periods_{col}_Max"] = g[col].transform(
+                s = g[col].transform(
                     lambda x: x.shift(1).rolling(window=k, min_periods=min_periods).max().fillna(-999)
                 )
+                s.name = f"{prefix}_{k}_periods_{col}_Max"
+                new_features.append(s)
 
             if add_growth:
                 prev1 = g[col].shift(1)
@@ -84,6 +99,13 @@ def make_ts_features(
                 if growth_clip is not None:
                     growth = growth.clip(lower=-growth_clip, upper=growth_clip)
 
-                out[name] = growth.fillna(-999)
+                s = growth.fillna(-999)
+                s.name = name
+                new_features.append(s)
+
+    # 📌 [수정 포인트 3] 마지막에 한 번에 합치기 (pd.concat 사용)
+    if new_features:
+        new_df = pd.concat(new_features, axis=1)
+        out = pd.concat([out, new_df], axis=1)
 
     return out.reset_index(drop=True) if sort else out
