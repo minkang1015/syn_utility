@@ -17,7 +17,7 @@ class DatasetInfo:
     task: str 
 
 
-def load_rossmann_flat(
+def load_rossmann(
     data_root: Path,
     split: str,
     method: str = "",
@@ -64,6 +64,8 @@ def load_rossmann_flat(
     hist_enc = encode_tables(hist_ts, meta["tables"]["historical"])
     final = hist_enc.merge(store_enc, on="Store", how="left").fillna(0)
 
+    final = final.dropna()
+    
     info = DatasetInfo(
         name="rossmann_subsampled",
         target_col="Customers",
@@ -75,7 +77,7 @@ def load_rossmann_flat(
     return final, info
 
 
-def load_walmart_flat(
+def load_walmart(
     data_root: Path,
     split: str,
     method: str = "",
@@ -134,6 +136,8 @@ def load_walmart_flat(
     tmp = depts_ts.merge(feats_ts, on=["Store", "Date", "IsHoliday"], how="left")
     final = tmp.merge(stores_enc, on="Store", how="left").fillna(0)
 
+    final = final.dropna()
+    
     info = DatasetInfo(
         name="walmart_subsampled",
         target_col="Weekly_Sales",
@@ -144,7 +148,7 @@ def load_walmart_flat(
     )
     return final, info
 
-def load_ptbxl_flat(
+def load_ptbxl(
     data_root: Path,
     split: str,
     method: str = "",
@@ -183,6 +187,8 @@ def load_ptbxl_flat(
     df_features_agg = df_features.groupby("ecg_id").mean(numeric_only=True).reset_index()
     final = pd.merge(df_meta_encoded, df_features_agg, on="ecg_id", how="inner")
 
+    final = final.dropna()
+    
     info = DatasetInfo(
         name="ptbxl",
         target_col="heart_axis",
@@ -193,7 +199,7 @@ def load_ptbxl_flat(
     )
     return final, info
 
-def load_freddiemac_flat(
+def load_freddiemac(
     data_root: Path,
     split: str,
     method: str = "",
@@ -236,6 +242,8 @@ def load_freddiemac_flat(
     final = df.dropna(subset=["DLQ_T+1"]).copy()
     final["DLQ_T+1"] = final["DLQ_T+1"].astype("int8")
 
+    final = final.dropna()
+    
     info = DatasetInfo(
         name="freddiemac",
         target_col="DLQ_T+1",
@@ -246,7 +254,7 @@ def load_freddiemac_flat(
     )
     return final, info
 
-def load_fanniemae_flat(
+def load_fanniemae(
     data_root: Path,
     split: str,
     method: str = "",
@@ -262,10 +270,8 @@ def load_fanniemae_flat(
     df = pd.read_csv(base / "fanniemae.csv")
     meta = read_json(data_root / "original" / "fanniemae" / "metadata_filtered.json")
 
-    # 1. Encoding
     df_enc = encode_tables(df, meta['tables']['crt'])
 
-    # 2. Time-series features
     ts_cols = ['Original Loan to Value Ratio (LTV)', 'Debt-To-Income (DTI)', 'Original Combined Loan to Value Ratio (CLTV)']
     df_feats = make_ts_features(
         df_enc, 
@@ -275,7 +281,6 @@ def load_fanniemae_flat(
         date_col='Monthly Reporting Period'
     )
 
-    # 3. Target Creation (DLQ_T+1)
     df_feats = df_feats.sort_values(['Loan Identifier', 'Monthly Reporting Period'], kind="mergesort")
     g = df_feats.groupby('Loan Identifier', sort=False)
     
@@ -286,6 +291,8 @@ def load_fanniemae_flat(
     final = df_feats.dropna(subset=["DLQ_T+1"]).copy()
     final["DLQ_T+1"] = final["DLQ_T+1"].astype("int8")
 
+    final = final.dropna()
+    
     info = DatasetInfo(
         name="fanniemae",
         target_col="DLQ_T+1",
@@ -298,11 +305,11 @@ def load_fanniemae_flat(
 
 
 DATASET_LOADERS = {
-    "rossmann_subsampled": load_rossmann_flat,
-    "walmart_subsampled": load_walmart_flat,
-    "ptbxl": load_ptbxl_flat,
-    "freddiemac": load_freddiemac_flat,
-    "fanniemae": load_fanniemae_flat,
+    "rossmann_subsampled": load_rossmann,
+    "walmart_subsampled": load_walmart,
+    "ptbxl": load_ptbxl,
+    "freddiemac": load_freddiemac,
+    "fanniemae": load_fanniemae,
 }
 
 
