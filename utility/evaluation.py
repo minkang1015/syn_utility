@@ -13,7 +13,7 @@ def evaluate(
     test_ratio: float = 0.2,
     mode: str = "tmtr",
     granularity: int = 10,
-    filtering: bool = False, # Added argument
+    filtering: bool = False, 
 ) -> pd.DataFrame:
     rows = []
     ratio_name = "syn_ratio" if mode == "tmtr" else "aug_ratio"

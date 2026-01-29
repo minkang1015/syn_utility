@@ -30,6 +30,11 @@ def fit_downstream_model(
     test_X = test.drop(columns=drop_cols, errors="ignore")
     test_y = test[target_col]
 
+    dt_cols = train_X.select_dtypes(include=["datetime64[ns]"]).columns
+    for c in dt_cols:
+        train_X[c] = train_X[c].dt.year * 100 + train_X[c].dt.month
+        test_X[c]  = test_X[c].dt.year  * 100 + test_X[c].dt.month
+    
     if task == "classification":
         model = xgb.XGBClassifier(
             objective="binary:logistic",
