@@ -8,9 +8,9 @@ DATA_ROOT_REL="./datas"
 OUTDIR_REL="./outputs"
 OUTDIR_ABS="${ROOT_DIR}/outputs"
 
-DATASETS=("rossmann_subsampled")  # "rossmann_subsampled"  "walmart_subsampled" "ptbxl" "freddiemac" "fanniemae"
+DATASETS=("ptbxl")  # "rossmann_subsampled"  "walmart_subsampled" "ptbxl" "freddiemac" "fanniemae"
 MODES=("tmtr" "tatr")
-MODELS=("REALTABFORMER") # "CLAVADDPM" "RCTGAN" "REALTABFORMER" "RelDiff" "RGCLD" "SDV"
+MODELS=("CLAVADDPM") # "CLAVADDPM" "RCTGAN" "REALTABFORMER" "RelDiff" "RGCLD" "SDV"
 
 RUNS=(1)  # 수정하지 않아도 됨
 SAMPLES=("sample1") # 수정하지 않아도 됨    # 합성 데이터 디렉토리가 ./datas/synthetic/DATASETS/MODELS/RUNS/SAMPLES/xxx.csv 식으로 존재해야함

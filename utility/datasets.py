@@ -184,7 +184,7 @@ def load_ptbxl(
     
     df_features_agg = df_features.groupby("ecg_id").mean(numeric_only=True).reset_index()
     final = pd.merge(df_meta_encoded, df_features_agg, on="ecg_id", how="inner")
-    final['diagnostic_superclass'] = (final["heart_axis"] != 3).astype(int)     # NORM encoding에따라 3말고 다른 숫자 넣기
+    final['diagnostic_superclass'] = (final["diagnostic_superclass"] != 3).astype(int)     # NORM encoding에따라 3말고 다른 숫자 넣기
 
     final = final.dropna()
     
