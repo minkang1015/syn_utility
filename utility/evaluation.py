@@ -30,7 +30,7 @@ def evaluate(
                 syn_ratio=float(r_req),
                 seed=seed,
                 granularity=granularity,
-                filtering=filtering, # Pass argument
+                filtering=filtering, 
             )
         elif mode == "tatr":
             train, test, cutoff, r_used = temporal_split_tatr(
@@ -43,7 +43,7 @@ def evaluate(
                 aug_ratio=float(r_req),
                 seed=seed,
                 granularity=granularity,
-                filtering=filtering, # Pass argument
+                filtering=filtering,
             )
         else:
             raise ValueError("mode must be one of: tmtr, tatr")

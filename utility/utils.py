@@ -84,7 +84,6 @@ def nondatetime_to_datetime(series: pd.Series, fmt: str) -> pd.Series:
         s = pd.to_numeric(s, errors="coerce").round().astype("Int64").astype("string")
     else:
         s = s.astype("string")
-    # s = s.str.replace(r"\s+", "", regex=True).str.strip()
     s = s.str.strip()
     
     if re.sub(r"%[A-Za-z]", "", fmt) == "":

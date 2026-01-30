@@ -1,18 +1,14 @@
 from __future__ import annotations
-
 import argparse
 from pathlib import Path
-
 from utility.datasets import get_dataset_loader
 from utility.evaluation import evaluate
 from utility.utils import load_json, parse_int_list, parse_ratios_from_bin
-
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser("Synthetic utility evaluator (JSON config-driven)")
     p.add_argument("--config", type=str, required=True, help="Path to config .json")
     return p
-
 
 def main():
     args = build_parser().parse_args()
@@ -55,8 +51,7 @@ def main():
         granularity=granularity,
         filtering=filtering,
     )
-
-    # meta columns for aggregation later
+    
     metrics_df.insert(0, "dataset", dataset)
     metrics_df.insert(1, "method", method)
     metrics_df.insert(2, "mode", mode)

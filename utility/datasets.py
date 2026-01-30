@@ -6,7 +6,6 @@ import pandas as pd
 from utility.utils import read_json, encode_tables
 from utility.features import make_ts_features
 
-
 @dataclass(frozen=True)
 class DatasetInfo:
     name: str
@@ -15,7 +14,6 @@ class DatasetInfo:
     date_col: str
     group_cols: Optional[list[str]]
     task: str 
-
 
 def load_rossmann(
     data_root: Path,
@@ -75,7 +73,6 @@ def load_rossmann(
         task="regression",
     )
     return final, info
-
 
 def load_walmart(
     data_root: Path,
@@ -164,6 +161,7 @@ def load_ptbxl(
     df_meta = pd.read_csv(base / "ptbxl_database.csv")
     df_meta = df_meta.drop(columns=['report'])
     df_records = pd.read_csv(base / "records.csv")
+    df_records = df_records.drop(columns=['record_id'])
     meta = read_json(data_root / "original" / "ptbxl" / "metadata.json")
     
 
@@ -186,12 +184,13 @@ def load_ptbxl(
     
     df_features_agg = df_features.groupby("ecg_id").mean(numeric_only=True).reset_index()
     final = pd.merge(df_meta_encoded, df_features_agg, on="ecg_id", how="inner")
+    final['diagnostic_superclass'] = (final["heart_axis"] != 3).astype(int)     # NORM encoding에따라 3말고 다른 숫자 넣기
 
     final = final.dropna()
     
     info = DatasetInfo(
         name="ptbxl",
-        target_col="heart_axis",
+        target_col="diagnostic_superclass",
         id_col="ecg_id",
         date_col="recording_date",
         group_cols=None,
@@ -216,11 +215,9 @@ def load_freddiemac(
     orig = pd.read_csv(base / "orig.csv")
     meta = read_json(data_root / "original" / "freddiemac" / "metadata.json")
 
-    # 1. Encoding
     hist_enc = encode_tables(hist, meta['tables']['hist'])
     orig_enc = encode_tables(orig, meta['tables']['orig'])
 
-    # 2. Time-series features
     ts_cols = ['CURRENT INTEREST RATE', 'CURRENT NON-INTEREST BEARING UPB', 'ESTIMATED LOAN TO VALUE (ELTV)']
     hist_feats = make_ts_features(
         hist_enc, 
@@ -230,7 +227,6 @@ def load_freddiemac(
         date_col='MONTHLY REPORTING PERIOD'
     )
 
-    # 3. Merge and Target Creation (DLQ_T+1)
     df = hist_feats.merge(orig_enc, on='LOAN SEQUENCE NUMBER', how='left')
     df = df.sort_values(['LOAN SEQUENCE NUMBER', 'MONTHLY REPORTING PERIOD'], kind="mergesort")
     
@@ -303,7 +299,6 @@ def load_fanniemae(
     )
     return final, info
 
-
 DATASET_LOADERS = {
     "rossmann_subsampled": load_rossmann,
     "walmart_subsampled": load_walmart,
@@ -311,7 +306,6 @@ DATASET_LOADERS = {
     "freddiemac": load_freddiemac,
     "fanniemae": load_fanniemae,
 }
-
 
 def get_dataset_loader(name: str):
     if name not in DATASET_LOADERS:

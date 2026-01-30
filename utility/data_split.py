@@ -11,7 +11,6 @@ def _validate_datetime(df: pd.DataFrame, date_col: str, name: str):
     )
     assert df[date_col].notna().all(), f"{name}: '{date_col}' contains NaT."
 
-
 def _snap_k(total: int, ratio_req: float, clamp01: bool = True) -> tuple[int, float]:
     r = float(ratio_req)
     if clamp01:
@@ -19,7 +18,6 @@ def _snap_k(total: int, ratio_req: float, clamp01: bool = True) -> tuple[int, fl
     k = int(np.round(r * total))
     k = max(0, min(total, k))
     return k, (k / total) if total > 0 else 0.0
-
 
 def temporal_split_tmtr(
     real_df: pd.DataFrame,
@@ -63,16 +61,23 @@ def temporal_split_tmtr(
     if filtering:
         grouping_cols = (group_cols + [date_col]) if group_cols else [date_col]
         
-        valid_groups = real_train_pool[grouping_cols].drop_duplicates()
-        syn_train_pool = syn_train_pool_raw.merge(valid_groups, on=grouping_cols, how="inner")
+        valid_groups = real_train_pool[grouping_cols].copy()
+        valid_groups[date_col] = pd.to_datetime(valid_groups[date_col]).dt.normalize()
+        valid_groups = valid_groups.drop_duplicates()
         
-        # (만약 필터링 후 Syn 데이터가 0개가 되면 경고나 에러를 낼 수 있음
+        syn_train_pool_tmp = syn_train_pool_raw.copy()
+        syn_train_pool_tmp['_compare_date'] = pd.to_datetime(syn_train_pool_tmp[date_col]).dt.normalize()
+        
+        syn_train_pool = syn_train_pool_tmp.merge(
+            valid_groups.rename(columns={date_col: '_compare_date'}),
+            on=(group_cols + ['_compare_date']) if group_cols else ['_compare_date'],
+            how="inner"
+        ).drop(columns=['_compare_date'])
+        
         if len(syn_train_pool) == 0 and syn_ratio > 0:
-            raise ValueError("Filtering removed all synthetic training data.")
+            raise ValueError("Filtering (Daily Resolution) removed all synthetic training data.")
     else:
         syn_train_pool = syn_train_pool_raw
-
-    # --- 이하 공통 로직 ---
 
     if len(real_train_pool) == 0:
         raise ValueError("real_train_pool empty after cutoff.")
@@ -94,8 +99,6 @@ def temporal_split_tmtr(
                  total_id = (total_id // granularity) * granularity
         
         if total_id <= 0:
-             # Syn 데이터가 너무 적거나 필터링으로 다 날아간 경우
-             # 실험을 계속하기 위해 total_id가 0이면 에러 처리
              raise ValueError(f"Cannot form total_id (real={len(real_ids)}, syn={len(syn_ids)}).")
 
     syn_id_n, syn_ratio_used = _snap_k(total_id, syn_ratio, clamp01=True)
@@ -111,7 +114,6 @@ def temporal_split_tmtr(
     real_test = real_test.sort_values([id_col, date_col], kind="mergesort")
 
     return train.reset_index(drop=True), real_test.reset_index(drop=True), cutoff, syn_ratio_used
-
 
 def temporal_split_tatr(
     real_df: pd.DataFrame,
@@ -147,22 +149,26 @@ def temporal_split_tatr(
     n_testD = max(1, int(round(nD * test_ratio)))
     cutoff = uniq_dates[-n_testD]
 
-    # 1. Real Data (항상 원본 유지)
     real_train = real_df[real_df[date_col] < cutoff]
     real_test = real_df[real_df[date_col] >= cutoff]
     
-    # 2. Syn Data 준비
     syn_train_pool_raw = syn_df[syn_df[date_col] < cutoff]
 
-    # 3. Filtering 적용 (Syn 데이터만 정제)
     if filtering:
         grouping_cols = (group_cols + [date_col]) if group_cols else [date_col]
+        valid_groups = real_train[grouping_cols].copy()
+        valid_groups[date_col] = pd.to_datetime(valid_groups[date_col]).dt.normalize()
+        valid_groups = valid_groups.drop_duplicates()
         
-        # Real Train에 있는 조합만 유효
-        valid_groups = real_train[grouping_cols].drop_duplicates()
+        syn_train_pool_tmp = syn_train_pool_raw.copy()
+        syn_train_pool_tmp['_compare_date'] = pd.to_datetime(syn_train_pool_tmp[date_col]).dt.normalize()
         
-        # Syn 필터링
-        syn_train_pool = syn_train_pool_raw.merge(valid_groups, on=grouping_cols, how="inner")
+        syn_train_pool = syn_train_pool_tmp.merge(
+            valid_groups.rename(columns={date_col: '_compare_date'}),
+            on=(group_cols + ['_compare_date']) if group_cols else ['_compare_date'],
+            how="inner"
+        ).drop(columns=['_compare_date'])
+        
     else:
         syn_train_pool = syn_train_pool_raw
 
@@ -171,7 +177,6 @@ def temporal_split_tatr(
     if len(real_test) == 0:
         raise ValueError("real_test is empty (Check cutoff logic).")
 
-    # Augmentation 로직
     if len(syn_train_pool) == 0:
         train = real_train.sort_values([id_col, date_col], kind="mergesort")
         real_test = real_test.sort_values([id_col, date_col], kind="mergesort")

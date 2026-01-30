@@ -103,7 +103,6 @@ def make_ts_features(
                 s.name = name
                 new_features.append(s)
 
-    # 📌 [수정 포인트 3] 마지막에 한 번에 합치기 (pd.concat 사용)
     if new_features:
         new_df = pd.concat(new_features, axis=1)
         out = pd.concat([out, new_df], axis=1)

@@ -8,14 +8,14 @@ DATA_ROOT_REL="./datas"
 OUTDIR_REL="./outputs"
 OUTDIR_ABS="${ROOT_DIR}/outputs"
 
-DATASETS=("rossmann_subsampled" "walmart_subsampled" "ptbxl" "freddiemac" "fanniemae")
+DATASETS=("rossmann_subsampled")  # "rossmann_subsampled"  "walmart_subsampled" "ptbxl" "freddiemac" "fanniemae"
 MODES=("tmtr" "tatr")
-MODELS=("REALTABFORMER" "RCTGAN" "CLAVADDPM" "RelDiff" "RGCLD" "SDV")
+MODELS=("REALTABFORMER") # "CLAVADDPM" "RCTGAN" "REALTABFORMER" "RelDiff" "RGCLD" "SDV"
 
-RUNS=(1)
-SAMPLES=("sample1")
-SEEDS=(1 2 3)
-FILTERING_OPTIONS=("true" "false")
+RUNS=(1)  # 수정하지 않아도 됨
+SAMPLES=("sample1") # 수정하지 않아도 됨    # 합성 데이터 디렉토리가 ./datas/synthetic/DATASETS/MODELS/RUNS/SAMPLES/xxx.csv 식으로 존재해야함
+SEEDS=(1) # seed 설정 1 2 3                # (예시: ./datas/synthetic/ptbxl/RCTGAN/1/sample1/records.csv)
+FILTERING_OPTIONS=("true" "false")  # "true" "false"
 
 declare -A CFG_DATES
 declare -A CFG_BIN
@@ -120,7 +120,6 @@ EOF
               echo "  cfg=${cfg}"
               echo "============================================================"
 
-              # 모델 실행
               if python -m utility.run --config "${cfg}" 2>&1 | tee "${log}"; then
                 echo "  -> OK"
               else
