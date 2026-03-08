@@ -8,13 +8,13 @@ DATA_ROOT_REL="./datas"
 OUTDIR_REL="./outputs"
 OUTDIR_ABS="${ROOT_DIR}/outputs"
 
-DATASETS=("ptbxl")  # "rossmann_subsampled"  "walmart_subsampled" "ptbxl" "freddiemac" "fanniemae"
-MODES=("tmtr" "tatr")
-MODELS=("CLAVADDPM") # "CLAVADDPM" "RCTGAN" "REALTABFORMER" "RelDiff" "RGCLD" "SDV"
+DATASETS=("rossmann_subsampled"  "walmart_subsampled")  # "rossmann_subsampled"  "walmart_subsampled" "berka" "freddiemac"
+MODES=("tmtr" "tatr")   # "tmtr" "tatr"
+MODELS=("CLAVADDPM" "RCTGAN" "RelDiff" "RGCLD" "SDV") # "CLAVADDPM" "RCTGAN" "REALTABFORMER" "RelDiff" "RGCLD" "SDV"
 
 RUNS=(1)  # 수정하지 않아도 됨
 SAMPLES=("sample1") # 수정하지 않아도 됨    # 합성 데이터 디렉토리가 ./datas/synthetic/DATASETS/MODELS/RUNS/SAMPLES/xxx.csv 식으로 존재해야함
-SEEDS=(1) # seed 설정 1 2 3                # (예시: ./datas/synthetic/ptbxl/RCTGAN/1/sample1/records.csv)
+SEEDS=(1 2 3) # seed 설정 1 2 3                # (예시: ./datas/synthetic/ptbxl/RCTGAN/1/sample1/records.csv)
 FILTERING_OPTIONS=("true" "false")  # "true" "false"
 
 declare -A CFG_DATES
@@ -43,7 +43,7 @@ CFG_GRAN["ptbxl"]="10"
 # 4. Freddie Mac
 CFG_DATES["freddiemac"]="1,2"
 CFG_BIN["freddiemac"]="0.1"
-CFG_RATIO_MAX["freddiemac"]="1.0"
+CFG_RATIO_MAX["freddiemac"]="0.9"
 CFG_GRAN["freddiemac"]="10"
 
 # 5. Fannie Mae
@@ -51,6 +51,12 @@ CFG_DATES["fanniemae"]="1,2"
 CFG_BIN["fanniemae"]="0.1"
 CFG_RATIO_MAX["fanniemae"]="1.0"
 CFG_GRAN["fanniemae"]="10"
+
+# 6. Berka
+CFG_DATES["berka"]="5,10,20"
+CFG_BIN["berka"]="0.1"
+CFG_RATIO_MAX["berka"]="1.0"
+CFG_GRAN["berka"]="10"
 
 TEST_RATIO="0.2"
 

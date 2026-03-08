@@ -11,6 +11,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     roc_auc_score,
+    r2_score
 )
 
 def fit_downstream_model(
@@ -27,7 +28,7 @@ def fit_downstream_model(
     train_y = train[target_col]
     test_X = test.drop(columns=drop_cols, errors="ignore")
     test_y = test[target_col]
-
+    
     dt_cols = train_X.select_dtypes(include=["datetime64[ns]"]).columns
     for c in dt_cols:
         train_X[c] = train_X[c].dt.year * 100 + train_X[c].dt.month
@@ -86,6 +87,7 @@ def fit_downstream_model(
             "mse": float(mean_squared_error(test_y, pred_y)),
             "mae": float(mean_absolute_error(test_y, pred_y)),
             "mape": float(mean_absolute_percentage_error(test_y, pred_y)),
+            'r2': float(r2_score(test_y, pred_y))
         }
 
     raise ValueError(f"Unknown task: {task}")

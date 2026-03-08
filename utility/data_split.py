@@ -60,7 +60,6 @@ def temporal_split_tmtr(
 
     if filtering:
         grouping_cols = (group_cols + [date_col]) if group_cols else [date_col]
-        
         valid_groups = real_train_pool[grouping_cols].copy()
         valid_groups[date_col] = pd.to_datetime(valid_groups[date_col]).dt.normalize()
         valid_groups = valid_groups.drop_duplicates()
@@ -151,9 +150,8 @@ def temporal_split_tatr(
 
     real_train = real_df[real_df[date_col] < cutoff]
     real_test = real_df[real_df[date_col] >= cutoff]
-    
     syn_train_pool_raw = syn_df[syn_df[date_col] < cutoff]
-
+    
     if filtering:
         grouping_cols = (group_cols + [date_col]) if group_cols else [date_col]
         valid_groups = real_train[grouping_cols].copy()
@@ -171,6 +169,8 @@ def temporal_split_tatr(
         
     else:
         syn_train_pool = syn_train_pool_raw
+
+    print(f"after filtering synthetic id length: {len(syn_train_pool)}")
 
     if len(real_train) == 0:
         raise ValueError("real_train empty after cutoff.")

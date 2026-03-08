@@ -43,23 +43,10 @@ def load_rossmann(
 
     hist = pd.read_csv(base / "historical.csv", usecols=hist_cols, parse_dates=["Date"])
     store = pd.read_csv(base / "store.csv", usecols=store_cols)
-
     meta = read_json(data_root / "original" / "rossmann_subsampled" / "metadata.json")
 
-    hist_ts = make_ts_features(
-        hist,
-        group_cols=["Store"],
-        ts_cols=["Customers"],
-        dates=dates,
-        date_col="Date",
-        add_shift=False,
-        add_rolling_mean=True,
-        add_growth=True,
-        growth_type="pct",
-    )
-
     store_enc = encode_tables(store.fillna(0), meta["tables"]["store"])
-    hist_enc = encode_tables(hist_ts, meta["tables"]["historical"])
+    hist_enc = encode_tables(hist, meta["tables"]["historical"])
     final = hist_enc.merge(store_enc, on="Store", how="left").fillna(0)
 
     final = final.dropna()
@@ -106,32 +93,9 @@ def load_walmart(
     feats_enc = encode_tables(feats, meta["tables"]["features"])
     depts_enc = encode_tables(depts, meta["tables"]["depts"])
 
-    feats_ts = make_ts_features(
-        feats_enc,
-        group_cols=["Store"],
-        ts_cols=["Temperature", "Fuel_Price", "CPI", "Unemployment"],
-        dates=dates,
-        date_col="Date",
-        add_shift=True,
-        add_rolling_mean=True,
-        add_growth=True,
-        growth_type="pct",
-    )
-
-    depts_ts = make_ts_features(
-        depts_enc,
-        group_cols=["Store", "Dept"],
-        ts_cols=["Weekly_Sales"],
-        dates=dates,
-        date_col="Date",
-        add_shift=False,
-        add_rolling_mean=True,
-        add_growth=True,
-        growth_type="pct",
-    )
-
-    tmp = depts_ts.merge(feats_ts, on=["Store", "Date", "IsHoliday"], how="left")
+    tmp = depts_enc.merge(feats_enc, on=["Store", "Date", "IsHoliday"], how="left")
     final = tmp.merge(stores_enc, on="Store", how="left").fillna(0)
+
     final = final.dropna()
     
     info = DatasetInfo(
@@ -172,22 +136,8 @@ def load_ptbxl(
         .rename("diagnostic_superclass")
         .reset_index()
     )
-    
-    ts_cols = [f"lead_{i}" for i in range(12)]
-    df_features = make_ts_features(
-        df=df_records_encoded,
-        group_cols=["ecg_id"],
-        ts_cols=ts_cols,
-        date_col="t",
-        dates=dates,
-        add_shift=False,
-        add_rolling_mean=True,
-        add_rolling_std=True,
-        add_growth=True,
-        growth_type="diff"
-    )
-    
-    df_features_agg = df_features.groupby("ecg_id").mean(numeric_only=True).reset_index()
+
+    df_features_agg = df_records_encoded.groupby("ecg_id").mean(numeric_only=True).reset_index()
     df_features_agg.drop(columns=['diagnostic_superclass'], inplace=True)
     tmp = pd.merge(df_meta_encoded, df_features_agg, on="ecg_id", how="inner")
     final = pd.merge(tmp, superclass, on="ecg_id", how="inner")
@@ -224,16 +174,7 @@ def load_freddiemac(
     hist_enc = encode_tables(hist, meta['tables']['hist'])
     orig_enc = encode_tables(orig, meta['tables']['orig'])
 
-    ts_cols = ['CURRENT INTEREST RATE', 'CURRENT NON-INTEREST BEARING UPB', 'ESTIMATED LOAN TO VALUE (ELTV)']
-    hist_feats = make_ts_features(
-        hist_enc, 
-        group_cols=['LOAN SEQUENCE NUMBER'], 
-        ts_cols=ts_cols, 
-        dates=dates, 
-        date_col='MONTHLY REPORTING PERIOD'
-    )
-
-    df = hist_feats.merge(orig_enc, on='LOAN SEQUENCE NUMBER', how='left')
+    df = hist_enc.merge(orig_enc, on='LOAN SEQUENCE NUMBER', how='left')
     df = df.sort_values(['LOAN SEQUENCE NUMBER', 'MONTHLY REPORTING PERIOD'], kind="mergesort")
     
     g = df.groupby('LOAN SEQUENCE NUMBER', sort=False)
@@ -313,12 +254,12 @@ def load_berka(
     sample: str = "sample1",
     dates: list[int] | None = None,
 ) -> tuple[pd.DataFrame, DatasetInfo]:
-    dates = dates or [5, 10, 20]
+    dates = dates or [10, 30, 90]
     base = data_root / ("original" if split == "original" else "synthetic") / "berka"
     if split != "original":
         base = base / method / str(run) / str(sample)
 
-    loan     = pd.read_csv(base / "loan.csv").dropna()
+    loan     = pd.read_csv(base / "loan.csv")
     trans    = pd.read_csv(base / "trans.csv")
     order    = pd.read_csv(base / "order.csv")
     account  = pd.read_csv(base / "account.csv")
@@ -326,8 +267,10 @@ def load_berka(
     client   = pd.read_csv(base / "client.csv")
     district = pd.read_csv(base / "district.csv")
     card     = pd.read_csv(base / "card.csv")
+
     meta = read_json(data_root / "original" / "berka" / "metadata.json")
-    
+
+    # 3) encode_tables 활용 (모든 테이블 인코딩)
     loan_enc     = encode_tables(loan, meta["tables"]["loan"])
     trans_enc    = encode_tables(trans, meta["tables"]["trans"])
     order_enc    = encode_tables(order, meta["tables"]["order"])
@@ -337,15 +280,10 @@ def load_berka(
     district_enc = encode_tables(district, meta["tables"]["district"])
     card_enc     = encode_tables(card, meta["tables"]["card"])
 
-    loan_enc = loan_enc.rename(columns={"date": "loan_date", "amount": "loan_amount"})
-    loan_enc = loan_enc.dropna(subset=["loan_date"])
-    account_enc = account_enc.rename(columns={"date":"account_date"})
-    trans_enc = trans_enc.rename(columns={"date": "trans_date", "amount": "trans_amount"})
-    
     trans_ts = make_ts_features(
         df=trans_enc,
         group_cols=["account_id"],
-        ts_cols=["trans_amount", "balance"],
+        ts_cols=["amount", "balance"],
         dates=dates,
         date_col="trans_date",
         add_shift=False,
@@ -353,42 +291,43 @@ def load_berka(
         add_growth=True,
         growth_type="diff"
     )
-    trans_ts = trans_ts.dropna(subset=["account_id", "trans_date"]).copy()
-    
-    disp_owner = (disp_enc.sort_values(["account_id", "type", "disp_id"])
-                    .drop_duplicates("account_id", keep="last")[["account_id", "client_id", "disp_id"]])
-    
-    base_table = (loan_enc.merge(account_enc, on="account_id", how="left")
-                    .merge(disp_owner, on="account_id", how="left")
-                    .merge(client_enc, on="client_id", how="left", suffixes=("", "_cli"))
-                    .merge(district_enc, on="district_id", how="left", suffixes=("", "_dist")))
 
-    base_table["status"] = base_table["status"].map({1:1, 3:1, 0:0, 2:0}).astype("int8")
-    
+    disp_owner = (disp_enc.sort_values(["account_id", "disp_type", "disp_id"])
+                    .drop_duplicates("account_id", keep="first")[["account_id", "client_id", "disp_id"]])
+
+    base = (loan_enc.merge(account_enc, on="account_id", how="left")
+                .merge(disp_owner, on="account_id", how="left")
+                .merge(client_enc, on="client_id", how="left", suffixes=("", "_cli"))
+                .merge(district_enc, on="district_id", how="left", suffixes=("", "_dist")))
+
+    base["account_age_days"] = base["loan_date"] - base["account_date"]
+    base["y"] = base["status"].astype(int)
+
     feat_order = (order_enc.groupby("account_id", as_index=False)
                       .agg(
                           order_cnt=("order_id", "size"),
                           order_amt_sum=("amount", "sum"),
                           order_amt_mean=("amount", "mean"),
-                          order_bank_to_nuniq=("bank_to", "nunique")
+                          order_bank_to_nuniq=("bank_to", "nunique"),
+                          order_ksymbol_nuniq=("k_symbol", "nunique"),
                       ))
-    
-    base_table = base_table.merge(feat_order, on="account_id", how="left")
-    
-    cj = card_enc.merge(disp_enc[["disp_id", "account_id"]], on="disp_id", how="left")
-    cj = cj.merge(loan_enc[["account_id", "loan_date", "loan_id"]], on="account_id", how="inner")
+    base = base.merge(feat_order, on="account_id", how="left")
+
+    cj = (base[["loan_id", "disp_id", "loan_date"]]
+          .merge(card_enc, on="disp_id", how="left"))
     cj = cj[cj["issued"] < cj["loan_date"]].copy()
-    cj["card_age_days"] = (cj["loan_date"] - cj["issued"]).dt.days
+    cj["card_age_days"] = cj["loan_date"] - cj["issued"]
 
     feat_card = (cj.groupby("loan_id", as_index=False)
                    .agg(
                        has_card=("card_id", lambda s: 1),
                        card_cnt=("card_id", "size"),
-                       card_age_min=("card_age_days", "min")
+                       card_type_nuniq=("card_type", "nunique"),
+                       card_age_min=("card_age_days", "min"),
                    ))
-    
-    base_table = base_table.merge(feat_card, on="loan_id", how="left")
-    loan_key = base_table[["loan_id", "account_id", "loan_date"]].sort_values("loan_date")
+    base = base.merge(feat_card, on="loan_id", how="left")
+
+    loan_key = base[["loan_id", "account_id", "loan_date"]].sort_values("loan_date")
     trans_ts = trans_ts.sort_values("trans_date")
     
     trans_final = pd.merge_asof(
@@ -400,25 +339,24 @@ def load_berka(
         direction="backward"
     )
     
-    final = base_table.merge(trans_final.drop(columns=["account_id", "loan_date"]), on="loan_id", how="left")
+    tj = trans_enc.merge(loan_key, on="account_id", how="inner")
+    tj = tj[tj["trans_date"] < tj["loan_date"]].copy()
     
-    agg_cols = [c for c in final.columns if c.startswith(("order_", "has_card", "card_", "Prev_", "trans_"))]
-    final[agg_cols] = final[agg_cols].fillna(-999)
-    final = final.dropna(subset=["status"]).fillna(-999)
+    df90 = tj[tj["trans_date"] >= (tj["loan_date"] - 90)].copy()
+    cnt90 = df90.groupby(["loan_id", "trans_type"])["amount"].size().unstack(fill_value=0)
+    cnt90.columns = [f"trans_type_cnt__{int(c)}__d90" for c in cnt90.columns]
     
-    KEEP_DATE = "loan_date"
-    KEEP_ID   = "loan_id"
+    base = base.merge(trans_final.drop(columns=["account_id", "loan_date"]), on="loan_id", how="left")
+    base = base.merge(cnt90.reset_index(), on="loan_id", how="left")
 
-    date_like_cols = [c for c in final.columns if c != KEEP_DATE and 
-                      (pd.api.types.is_datetime64_any_dtype(final[c]) or c.lower().endswith("_date") or c.lower() in {"issued"})]
-
-    id_like_cols = [c for c in final.columns if c != KEEP_ID and (c.lower().endswith("_id") or c.lower() == "id")]
-
-    final = final.drop(columns=(date_like_cols + id_like_cols), errors="ignore")
+    agg_cols = [c for c in base.columns if c.startswith(("order_", "has_card", "card_", "Prev_", "trans_"))]
+    base[agg_cols] = base[agg_cols].fillna(0)
+    
+    final = base.dropna(subset=["y"]).fillna(0)
 
     info = DatasetInfo(
         name="berka",
-        target_col="status",
+        target_col="y",
         id_col="loan_id",
         date_col="loan_date",
         group_cols=None,
@@ -426,13 +364,14 @@ def load_berka(
     )
     return final, info
 
+
+
 DATASET_LOADERS = {
     "rossmann_subsampled": load_rossmann,
     "walmart_subsampled": load_walmart,
     "ptbxl": load_ptbxl,
     "freddiemac": load_freddiemac,
     "fanniemae": load_fanniemae,
-    'berka': load_berka
 }
 
 def get_dataset_loader(name: str):
